@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "Assignment2_AdelKenesova/inventory_service/proto";
+
+service InventoryService {
+  rpc CreateProduct (CreateProductRequest) returns (ProductResponse);
+  rpc GetProduct (GetProductRequest) returns (ProductResponse);
+  rpc ListProducts (Empty) returns (ProductListResponse);
+  rpc UpdateProduct (UpdateProductRequest) returns (ProductResponse);
+  rpc DeleteProduct (DeleteProductRequest) returns (Empty);
+  rpc DecreaseStock(DecreaseStockRequest) returns (Empty);
+
+}
+
+message Product {
+  uint64 id = 1;
+  string name = 2;
+  string brand = 3;
+  uint64 category_id = 4;
+  double price = 5;
+  uint64 stock = 6;
+  string description = 7;
+}
+
+message CreateProductRequest {
+  string name = 1;
+  string brand = 2;
+  uint64 category_id = 3;
+  double price = 4;
+  uint64 stock = 5;
+  string description = 6;
+}
+
+
+message UpdateProductRequest {
+  uint64 id = 1;
+  string name = 2;
+  string brand = 3;
+  uint64 category_id = 4;
+  double price = 5;
+  uint64 stock = 6;
+  string description = 7;
+}
+
+message GetProductRequest {
+  uint64 id = 1;
+}
+
+message DeleteProductRequest {
+  uint64 id = 1;
+}
+
+message ProductResponse {
+  Product product = 1;
+}
+
+
+message ProductListResponse {
+  repeated Product products = 1;
+}
+
+
+message DecreaseStockRequest {
+  uint64 product_id = 1;
+  uint64 quantity = 2;
+}
+
+message Empty {}
+
+
+
