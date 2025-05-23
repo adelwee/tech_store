@@ -35,4 +35,5 @@ message AuthResponse {
   bool success = 1;
   string message = 2;
   uint64 user_id = 3;
+  string token = 4;
 }

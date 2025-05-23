@@ -3,6 +3,7 @@ package handlers
 import (
 	pb "Assignment2_AdelKenesova/user_service/proto"
 	"context"
+	"google.golang.org/grpc/metadata"
 	"log"
 	"net/http"
 	"time"
@@ -29,28 +30,16 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// gRPC подключение к UserService
-	conn, err := grpc.Dial("localhost:50053", grpc.WithInsecure())
-	if err != nil {
-		log.Println("Failed to connect to UserService:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "UserService unavailable"})
-		return
-	}
-	defer conn.Close()
-
-	client := pb.NewUserServiceClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	res, err := client.RegisterUser(ctx, &pb.RegisterRequest{
+	res, err := userClient.RegisterUser(ctx, &pb.RegisterRequest{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
 	})
-
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -61,22 +50,54 @@ func RegisterUser(c *gin.Context) {
 	})
 }
 
-func GetUserProfile(c *gin.Context) {
+func LoginUser(c *gin.Context) {
 	var req struct {
-		ID uint64 `json:"id"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	res, err := userClient.GetUserProfile(ctx, &pb.UserID{Id: req.ID})
+	res, err := userClient.AuthenticateUser(ctx, &pb.AuthRequest{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+
+	if err != nil {
+		log.Println("gRPC error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !res.Success {
+		log.Println("Auth failed:", res.Message)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": res.Message})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": res.UserId,
+		"token":   res.Token,
+	})
+}
+
+func GetUserProfile(c *gin.Context) {
+	// Передаём заголовок Authorization в gRPC metadata
+	md := metadata.New(map[string]string{
+		"authorization": c.GetHeader("Authorization"),
+	})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	res, err := userClient.GetUserProfile(ctx, &pb.UserID{}) // ID достаётся из токена
 	if err != nil {
 		log.Println("GetUserProfile gRPC error:", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 

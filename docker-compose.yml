@@ -1,0 +1,85 @@
+version: '3.9'
+services:
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tech_store
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - tech_network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - tech_network
+
+  nats:
+    image: nats
+    ports:
+      - "4222:4222"
+    networks:
+      - tech_network
+
+  user_service:
+    build:
+      context: .
+      dockerfile: user_service/Dockerfile
+    ports:
+      - "50053:50053"
+    depends_on:
+      - postgres
+    networks:
+      - tech_network
+
+  inventory_service:
+    build:
+      context: .
+      dockerfile: inventory_service/Dockerfile
+    ports:
+      - "50051:50051"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tech_network
+
+  order_service:
+    build:
+      context: .
+      dockerfile: order_service/Dockerfile
+    ports:
+      - "50052:50052"
+    depends_on:
+      - postgres
+      - nats
+    networks:
+      - tech_network
+
+  api_gateway:
+    build:
+      context: .
+      dockerfile: api_gateway/Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - user_service
+      - inventory_service
+      - order_service
+    networks:
+      - tech_network
+
+volumes:
+  pgdata:
+
+
+networks:
+  tech_network:
+    driver: bridge

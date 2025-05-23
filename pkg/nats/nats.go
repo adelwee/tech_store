@@ -12,7 +12,7 @@ var natsConn *nats.Conn
 
 func InitNATS(url string) error {
 	var err error
-	natsConn, err = nats.Connect(url)
+	natsConn, err = nats.Connect("nats://nats:4222")
 	return err
 }
 
